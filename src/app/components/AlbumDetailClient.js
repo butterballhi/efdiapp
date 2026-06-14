@@ -19,24 +19,7 @@ export default function AlbumDetailClient({ album, initialItems }) {
   const [items, setItems] = useState(initialItems);
   const [itemToDelete, setItemToDelete] = useState(null);
   
-  // Delete Album State
-  const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false);
-  const [isDeletingAlbum, setIsDeletingAlbum] = useState(false);
 
-  const handleConfirmDeleteAlbum = async () => {
-    setIsDeletingAlbum(true);
-    try {
-      const { deleteAlbum } = await import('../lib/actions');
-      await deleteAlbum(album.id);
-      router.push('/');
-    } catch (e) {
-      console.error(e);
-      alert('Gagal menghapus album.');
-      setIsDeletingAlbum(false);
-      setShowDeleteAlbumModal(false);
-    }
-  };
-  
   // Edit Name State
   const [albumName, setAlbumName] = useState(album.name);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -198,14 +181,6 @@ export default function AlbumDetailClient({ album, initialItems }) {
 
           <div className="flex gap-2.5 mt-4 md:mt-0">
             <button 
-              className="btn bg-white/40 hover:bg-[var(--status-error-bg)] text-text-secondary hover:text-[var(--status-error-text)] text-sm py-2.5 px-5 transition-colors border-0" 
-              onClick={() => setShowDeleteAlbumModal(true)}
-              title="Hapus Album"
-            >
-              <TrashIcon size={16} />
-              Hapus Album
-            </button>
-            <button 
               className="btn bg-white/50 hover:bg-white text-[var(--purple-bold)] text-sm py-2.5 px-5 transition-colors border-0" 
               id="download-all-button"
               onClick={() => {
@@ -293,45 +268,6 @@ export default function AlbumDetailClient({ album, initialItems }) {
         document.body
       )}
 
-      {/* Delete Album Confirmation Modal */}
-      {mounted && showDeleteAlbumModal && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in px-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteAlbumModal(false)} />
-          <div className="relative z-10 bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl animate-scale-in text-center border-2 border-white/20">
-            <div className="w-16 h-16 rounded-full bg-[var(--status-error-bg)] text-[var(--status-error-text)] flex items-center justify-center mx-auto mb-5 shadow-inner">
-              <TrashIcon size={32} />
-            </div>
-            <h3 className="font-heading font-bold text-xl text-text-primary mb-2">Hapus Album?</h3>
-            <p className="text-text-secondary text-sm mb-7">
-              Semua foto dan video di dalam album <span className="font-semibold text-pink-bold">{album.name}</span> akan terhapus secara permanen. Apakah kalian yakin? 🥺
-            </p>
-            <div className="flex gap-3 w-full">
-              <button 
-                onClick={() => setShowDeleteAlbumModal(false)}
-                disabled={isDeletingAlbum}
-                className="flex-1 py-3 px-4 rounded-xl font-body font-semibold text-text-secondary bg-gray-100 hover:bg-gray-200 transition-colors border-0 cursor-pointer"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={handleConfirmDeleteAlbum}
-                disabled={isDeletingAlbum}
-                className="flex-1 py-3 px-4 rounded-xl font-body font-semibold text-white bg-[var(--status-error-text)] hover:opacity-90 transition-opacity shadow-md border-0 cursor-pointer flex justify-center items-center gap-2"
-              >
-                {isDeletingAlbum ? (
-                  <>
-                    <span className="animate-spin w-4 h-4 border-2 border-white/40 border-t-white rounded-full" />
-                    Menghapus...
-                  </>
-                ) : (
-                  'Ya, Hapus'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 }
