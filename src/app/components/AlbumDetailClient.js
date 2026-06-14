@@ -133,16 +133,16 @@ export default function AlbumDetailClient({ album, initialItems }) {
 
       {/* Album Header */}
       <div className="rounded-2xl p-5 sm:p-7 mb-6" style={{ background: album.cover_color }}>
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div className="flex-1 w-full">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+          <div className="flex-1 w-full min-w-0">
             {isEditingName ? (
-              <div className="flex items-center gap-2 mb-2 w-full max-w-md animate-fade-in">
+              <div className="flex items-center gap-2 mb-2 w-full max-w-xl animate-fade-in">
                 <input
                   type="text"
                   value={albumName}
                   onChange={(e) => setAlbumName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                  className="input py-1.5 px-3 text-lg sm:text-xl font-bold font-heading m-0 flex-1"
+                  className="input py-2 px-4 text-lg sm:text-xl font-bold font-heading m-0 flex-1 min-w-0"
                   autoFocus
                   disabled={isSavingName}
                 />
