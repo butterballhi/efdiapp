@@ -78,43 +78,14 @@ function MediaItem({ item, index, onClick, onDelete }) {
         )}
       </div>
 
-      {/* Overlay - Always visible but subtle */}
-      <div className="absolute inset-0 bg-black/10 transition-all duration-250 flex items-center justify-center">
-          <div className="flex gap-2">
-          {item.type === 'video' && (
-            <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-md">
-              <PlayIcon size={18} className="text-pink-bold ml-0.5" />
-            </div>
-          )}
-          {onDelete && (
-            <button 
-              className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-md border-0 cursor-pointer hover:scale-110 transition-transform"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item.id);
-              }}
-              title="Hapus"
-            >
-              <TrashIcon size={16} className="text-[var(--status-error-text)]" />
-            </button>
-          )}
-          <button 
-            className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-md border-0 cursor-pointer hover:scale-110 transition-transform"
-            onClick={(e) => {
-              e.stopPropagation();
-              const link = document.createElement('a');
-              link.href = `https://gzihdruyaqihkqmpaquc.supabase.co/storage/v1/object/public/efdiapp-vault/${item.fileKey}?download=`;
-              link.download = item.fileName || 'download';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            title="Download"
-          >
-            <DownloadIcon size={16} className="text-purple-bold" />
-          </button>
+      {/* Video Play Icon Overlay */}
+      {item.type === 'video' && (
+        <div className="absolute inset-0 bg-black/10 flex items-center justify-center pointer-events-none">
+          <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-md">
+            <PlayIcon size={18} className="text-pink-bold ml-0.5" />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Video indicator */}
       {item.type === 'video' && (
