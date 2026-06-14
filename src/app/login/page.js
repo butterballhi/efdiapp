@@ -30,6 +30,7 @@ export default function LoginPage() {
           password,
         });
         if (error) throw error;
+        setSuccess('Berhasil masuk! Sedang memuat halaman...');
         router.push('/');
         router.refresh();
       } else {
@@ -52,6 +53,7 @@ export default function LoginPage() {
         } else {
           // Perlu konfirmasi email
           setSuccess('Akun berhasil dibuat! Silakan cek email kamu untuk verifikasi sebelum masuk.');
+          setLoading(false);
           setTimeout(() => {
             setIsLogin(true);
             setSuccess('');
@@ -65,7 +67,6 @@ export default function LoginPage() {
           ? 'Email sudah terdaftar, coba masuk aja~'
           : err.message
       );
-    } finally {
       setLoading(false);
     }
   };
