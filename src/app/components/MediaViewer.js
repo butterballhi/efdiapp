@@ -172,9 +172,11 @@ export default function MediaViewer({ items, initialIndex = 0, onClose, onDelete
                 </span>
               </div>
             </div>
-            <div className={`badge text-[10px] ${currentItem.status === 'ready' ? 'badge-ready' : 'badge-processing'}`}>
-              {currentItem.status === 'ready' ? '✓ Ready' : '⏳ Processing'}
-            </div>
+            {currentItem.status === 'processing' && (
+              <div className="badge text-[10px] badge-processing">
+                ⏳ Processing
+              </div>
+            )}
           </div>
         </div>
       </div>

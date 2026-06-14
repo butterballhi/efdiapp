@@ -100,11 +100,6 @@ function MediaItem({ item, index, onClick, onDelete }) {
           ⏳ Processing
         </div>
       )}
-      {item.status === 'ready' && (
-        <div className="absolute top-2 right-2 badge badge-ready text-[10px] py-0.5 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          ✓ Ready
-        </div>
-      )}
     </div>
   );
 }

@@ -198,7 +198,7 @@ export default function AlbumDetailClient({ album, initialItems }) {
 
           <div className="flex gap-2.5 mt-4 md:mt-0">
             <button 
-              className="btn bg-white/40 hover:bg-[var(--status-error-bg)] text-text-secondary hover:text-[var(--status-error-text)] text-sm py-2.5 px-5 transition-colors !border-2 !border-[var(--status-error-text)]/50 hover:!border-[var(--status-error-text)]" 
+              className="btn bg-white/40 hover:bg-[var(--status-error-bg)] text-text-secondary hover:text-[var(--status-error-text)] text-sm py-2.5 px-5 transition-colors border-0" 
               onClick={() => setShowDeleteAlbumModal(true)}
               title="Hapus Album"
             >
@@ -243,7 +243,6 @@ export default function AlbumDetailClient({ album, initialItems }) {
               Semua Media
             </h2>
             <div className="flex items-center gap-2 text-xs text-text-secondary font-body">
-              <span className="badge badge-ready">{mappedItems.filter(i => i.status === 'ready').length} ready</span>
               {mappedItems.filter(i => i.status === 'processing').length > 0 && (
                 <span className="badge badge-processing">{mappedItems.filter(i => i.status === 'processing').length} processing</span>
               )}
