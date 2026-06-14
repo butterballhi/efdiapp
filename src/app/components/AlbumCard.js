@@ -52,8 +52,8 @@ export default function AlbumCard({ album, onEdit, onDelete }) {
               {album.name}
             </h3>
             
-            {/* Quick Actions (Hover) */}
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-3 top-3 bg-white/90 backdrop-blur-sm rounded-full shadow-sm p-0.5">
+            {/* Quick Actions */}
+            <div className="flex items-center gap-0.5 absolute right-3 top-3 bg-white/90 backdrop-blur-sm rounded-full shadow-sm p-0.5">
               <button 
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit?.(album); }}
                 className="w-7 h-7 flex items-center justify-center rounded-full text-text-secondary hover:text-pink-bold hover:bg-pink-pastel/30 transition-colors border-0 bg-transparent cursor-pointer"

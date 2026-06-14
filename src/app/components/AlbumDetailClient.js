@@ -177,7 +177,7 @@ export default function AlbumDetailClient({ album, initialItems }) {
                 </h1>
                 <button
                   onClick={() => setIsEditingName(true)}
-                  className="w-8 h-8 rounded-full bg-white/50 text-text-secondary hover:text-pink-bold hover:bg-white flex items-center justify-center opacity-0 group-hover/title:opacity-100 transition-all border-0 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-white/50 text-text-secondary hover:text-pink-bold hover:bg-white flex items-center justify-center transition-all border-0 cursor-pointer"
                   title="Edit Nama Album"
                 >
                   <EditIcon size={16} />

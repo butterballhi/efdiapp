@@ -78,9 +78,9 @@ function MediaItem({ item, index, onClick, onDelete }) {
         )}
       </div>
 
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-250 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-all duration-250 flex gap-2">
+      {/* Overlay - Always visible but subtle */}
+      <div className="absolute inset-0 bg-black/10 transition-all duration-250 flex items-center justify-center">
+          <div className="flex gap-2">
           {item.type === 'video' && (
             <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-md">
               <PlayIcon size={18} className="text-pink-bold ml-0.5" />
