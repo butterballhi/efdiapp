@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import imageCompression from 'browser-image-compression';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile } from '@ffmpeg/util';
 import { CloudUploadIcon, ImageIcon, VideoIcon, CloseIcon } from './icons';
 
 export default function UploadZone({ albumId, onUploadComplete, onFilesSelected }) {
@@ -9,6 +12,7 @@ export default function UploadZone({ albumId, onUploadComplete, onFilesSelected 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState(''); // '', 'uploading', 'done', 'error'
+  const ffmpegRef = useRef(new FFmpeg());
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -46,49 +50,91 @@ export default function UploadZone({ albumId, onUploadComplete, onFilesSelected 
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadFileToR2 = async (file) => {
-    // Step 1: Get presigned URL from our API
-    const presignRes = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: file.name,
-        fileType: file.type,
-        albumId,
-      }),
-    });
-
-    if (!presignRes.ok) {
-      throw new Error('Failed to get upload URL');
+  const uploadFileToSupabase = async (originalFile) => {
+    const supabase = (await import('../lib/supabase/client')).getSupabaseBrowserClient();
+    
+    setUploadProgress(10);
+    
+    let fileToUpload = originalFile;
+    
+    // Compress image before upload
+    if (originalFile.type.startsWith('image/') && !originalFile.type.includes('gif')) {
+      try {
+        const options = {
+          maxSizeMB: 1, // Target size ~1MB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          initialQuality: 0.8
+        };
+        fileToUpload = await imageCompression(originalFile, options);
+      } catch (error) {
+        console.error('Image compression failed:', error);
+      }
     }
-
-    const { uploadUrl, fileKey } = await presignRes.json();
-
-    // Step 2: Upload file directly to R2 via presigned URL
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('Content-Type', file.type);
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          setUploadProgress(Math.round((e.loaded / e.total) * 100));
+    
+    // Compress video before upload
+    if (originalFile.type.startsWith('video/')) {
+      try {
+        const ffmpeg = ffmpegRef.current;
+        if (!ffmpeg.loaded) {
+          setUploadProgress(15);
+          await ffmpeg.load({
+            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
+          });
         }
-      };
+        
+        ffmpeg.on('progress', ({ progress, time }) => {
+          // progress is ratio from 0 to 1
+          // We map 20% to 80% for ffmpeg processing
+          setUploadProgress(20 + Math.floor(progress * 60));
+        });
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
-        }
-      };
+        const inputName = 'input_video' + originalFile.name.substring(originalFile.name.lastIndexOf('.'));
+        const outputName = 'output.mp4';
+        
+        await ffmpeg.writeFile(inputName, await fetchFile(originalFile));
+        
+        // Compress video: scale down to max 1080p (if larger) and compress with better quality
+        await ffmpeg.exec([
+          '-i', inputName, 
+          '-vf', 'scale=\'min(1920,iw)\':\'min(1080,ih)\':force_original_aspect_ratio=decrease', 
+          '-c:v', 'libx264', 
+          '-crf', '23', // Lower CRF = better quality (default is 23)
+          '-preset', 'veryfast', // Faster compression but still good size
+          outputName
+        ]);
+        
+        const data = await ffmpeg.readFile(outputName);
+        fileToUpload = new File([data.buffer], originalFile.name.replace(/\.[^/.]+$/, "") + ".mp4", {
+          type: 'video/mp4'
+        });
+        
+      } catch (error) {
+        console.error('Video compression failed:', error);
+        // Fallback to original file
+      }
+    }
+    
+    setUploadProgress(85);
+    
+    const timestamp = Date.now();
+    const sanitizedName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileKey = `albums/${albumId}/${timestamp}-${sanitizedName}`;
 
-      xhr.onerror = () => reject(new Error('Upload failed'));
-      xhr.send(file);
-    });
+    const { data, error } = await supabase.storage
+      .from('efdiapp-vault')
+      .upload(fileKey, fileToUpload, {
+        cacheControl: '3600',
+        upsert: false
+      });
 
-    return { fileKey, fileSize: file.size, mimeType: file.type };
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+    
+    setUploadProgress(100);
+    return { fileKey: data.path, fileSize: fileToUpload.size, mimeType: fileToUpload.type };
   };
 
   const handleUpload = async () => {
@@ -96,7 +142,6 @@ export default function UploadZone({ albumId, onUploadComplete, onFilesSelected 
     setUploading(true);
     setUploadStatus('uploading');
 
-    // If no albumId (mock mode), use the old mock behavior
     if (!albumId) {
       setTimeout(() => {
         setUploading(false);
@@ -113,9 +158,8 @@ export default function UploadZone({ albumId, onUploadComplete, onFilesSelected 
         setUploadProgress(0);
         const type = file.type.startsWith('video/') ? 'video' : 'photo';
 
-        const { fileKey, fileSize, mimeType } = await uploadFileToR2(file);
+        const { fileKey, fileSize, mimeType } = await uploadFileToSupabase(file);
 
-        // Step 3: Create media record in database
         if (onUploadComplete) {
           await onUploadComplete({
             fileName: file.name,

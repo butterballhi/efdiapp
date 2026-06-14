@@ -1,16 +1,46 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MediaGrid from './MediaGrid';
 import UploadZone from './UploadZone';
 import EmptyState from './EmptyState';
-import { ChevronLeftIcon, DownloadIcon, UploadIcon, CalendarIcon, ImageIcon } from './icons';
-import { createMediaItem } from '../lib/actions';
+import { ChevronLeftIcon, DownloadIcon, UploadIcon, CalendarIcon, ImageIcon, TrashIcon, EditIcon, CheckIcon, CloseIcon } from './icons';
+import { createMediaItem, deleteMediaItem } from '../lib/actions';
 
 export default function AlbumDetailClient({ album, initialItems }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const router = useRouter();
   const [showUpload, setShowUpload] = useState(false);
   const [items, setItems] = useState(initialItems);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  
+  // Delete Album State
+  const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false);
+  const [isDeletingAlbum, setIsDeletingAlbum] = useState(false);
+
+  const handleConfirmDeleteAlbum = async () => {
+    setIsDeletingAlbum(true);
+    try {
+      const { deleteAlbum } = await import('../lib/actions');
+      await deleteAlbum(album.id);
+      router.push('/');
+    } catch (e) {
+      console.error(e);
+      alert('Gagal menghapus album.');
+      setIsDeletingAlbum(false);
+      setShowDeleteAlbumModal(false);
+    }
+  };
+  
+  // Edit Name State
+  const [albumName, setAlbumName] = useState(album.name);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('id-ID', {
@@ -18,6 +48,27 @@ export default function AlbumDetailClient({ album, initialItems }) {
       month: 'long',
       year: 'numeric',
     });
+  };
+
+  const handleSaveName = async () => {
+    if (!albumName.trim() || albumName === album.name) {
+      setIsEditingName(false);
+      setAlbumName(album.name);
+      return;
+    }
+    
+    setIsSavingName(true);
+    try {
+      const { updateAlbum } = await import('../lib/actions');
+      await updateAlbum(album.id, albumName.trim());
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Failed to rename album:', error);
+      alert('Gagal mengganti nama album.');
+      setAlbumName(album.name); // revert on error
+    } finally {
+      setIsSavingName(false);
+    }
   };
 
   const handleUploadComplete = useCallback(async ({ fileName, fileKey, fileSize, mimeType, type }) => {
@@ -35,6 +86,27 @@ export default function AlbumDetailClient({ album, initialItems }) {
       console.error('Failed to save media item:', error);
     }
   }, [album.id]);
+
+  const requestDelete = useCallback((itemId) => {
+    setItemToDelete(itemId);
+  }, []);
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      await deleteMediaItem(itemToDelete, album.id);
+      setItems((prev) => prev.filter((i) => i.id !== itemToDelete));
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+      alert('Gagal menghapus foto.');
+    } finally {
+      setItemToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setItemToDelete(null);
+  };
 
   // Map Supabase fields to component-expected format
   const mappedItems = items.map((item) => ({
@@ -62,10 +134,56 @@ export default function AlbumDetailClient({ album, initialItems }) {
       {/* Album Header */}
       <div className="rounded-2xl p-5 sm:p-7 mb-6" style={{ background: album.cover_color }}>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-text-primary mb-2">
-              {album.name}
-            </h1>
+          <div className="flex-1 w-full">
+            {isEditingName ? (
+              <div className="flex items-center gap-2 mb-2 w-full max-w-md animate-fade-in">
+                <input
+                  type="text"
+                  value={albumName}
+                  onChange={(e) => setAlbumName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                  className="input py-1.5 px-3 text-lg sm:text-xl font-bold font-heading m-0 flex-1"
+                  autoFocus
+                  disabled={isSavingName}
+                />
+                <button 
+                  onClick={handleSaveName}
+                  disabled={isSavingName}
+                  className="w-9 h-9 rounded-xl bg-pink-bold text-white flex items-center justify-center border-0 cursor-pointer shadow-md hover:scale-105 transition-transform disabled:opacity-50"
+                  title="Simpan Nama"
+                >
+                  {isSavingName ? (
+                    <span className="animate-spin w-4 h-4 border-2 border-white/40 border-t-white rounded-full" />
+                  ) : (
+                    <CheckIcon size={18} />
+                  )}
+                </button>
+                <button 
+                  onClick={() => {
+                    setAlbumName(album.name);
+                    setIsEditingName(false);
+                  }}
+                  disabled={isSavingName}
+                  className="w-9 h-9 rounded-xl bg-white/50 text-text-secondary hover:text-status-error-text flex items-center justify-center border-0 cursor-pointer transition-colors"
+                  title="Batal"
+                >
+                  <CloseIcon size={18} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 mb-2 group/title">
+                <h1 className="font-heading text-2xl sm:text-3xl font-bold text-text-primary m-0">
+                  {albumName}
+                </h1>
+                <button
+                  onClick={() => setIsEditingName(true)}
+                  className="w-8 h-8 rounded-full bg-white/50 text-text-secondary hover:text-pink-bold hover:bg-white flex items-center justify-center opacity-0 group-hover/title:opacity-100 transition-all border-0 cursor-pointer"
+                  title="Edit Nama Album"
+                >
+                  <EditIcon size={16} />
+                </button>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span className="flex items-center gap-1.5 text-text-secondary font-body">
                 <CalendarIcon size={14} />
@@ -79,7 +197,30 @@ export default function AlbumDetailClient({ album, initialItems }) {
           </div>
 
           <div className="flex gap-2.5">
-            <button className="btn btn-secondary text-sm py-2.5 px-5" id="download-all-button">
+            <button 
+              className="btn bg-transparent hover:bg-status-error-bg text-text-secondary hover:text-status-error-text text-sm py-2.5 px-5 transition-colors border-2 border-white/50 hover:border-[var(--status-error-text)]" 
+              onClick={() => setShowDeleteAlbumModal(true)}
+              title="Hapus Album"
+            >
+              <TrashIcon size={16} />
+              Hapus Album
+            </button>
+            <button 
+              className="btn bg-white/50 hover:bg-white text-[var(--purple-bold)] text-sm py-2.5 px-5 transition-colors border-0" 
+              id="download-all-button"
+              onClick={() => {
+                mappedItems.forEach((item, index) => {
+                  setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.href = `https://gzihdruyaqihkqmpaquc.supabase.co/storage/v1/object/public/efdiapp-vault/${item.fileKey}?download=`;
+                    link.download = item.fileName || 'download';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }, index * 500); // 500ms delay between downloads to prevent browser blocking
+                });
+              }}
+            >
               <DownloadIcon size={16} />
               Download Semua
             </button>
@@ -108,7 +249,7 @@ export default function AlbumDetailClient({ album, initialItems }) {
               )}
             </div>
           </div>
-          <MediaGrid items={mappedItems} />
+          <MediaGrid items={mappedItems} onDelete={requestDelete} />
         </div>
       ) : (
         <EmptyState onUpload={() => setShowUpload(true)} />
@@ -123,6 +264,75 @@ export default function AlbumDetailClient({ album, initialItems }) {
       >
         <UploadIcon size={24} className={`transition-transform duration-300 ${showUpload ? 'rotate-45' : ''}`} />
       </button>
+
+      {/* Custom Delete Confirmation Modal */}
+      {mounted && itemToDelete && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in px-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={cancelDelete} />
+          <div className="relative z-10 bg-white rounded-3xl p-6 sm:p-8 max-w-xs w-full shadow-2xl animate-scale-in text-center border-2 border-white/20">
+            <div className="w-16 h-16 rounded-full bg-[var(--status-error-bg)] text-[var(--status-error-text)] flex items-center justify-center mx-auto mb-5 shadow-inner">
+              <TrashIcon size={32} />
+            </div>
+            <h3 className="font-heading font-bold text-xl text-text-primary mb-2">Hapus Foto?</h3>
+            <p className="text-text-secondary text-sm mb-7">Foto ini akan dihapus permanen. Proses ini tidak bisa dibatalkan.</p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={cancelDelete}
+                className="flex-1 py-3 px-4 rounded-xl font-body font-semibold text-text-secondary bg-gray-100 hover:bg-gray-200 transition-colors border-0 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="flex-1 py-3 px-4 rounded-xl font-body font-semibold text-white bg-[var(--status-error-text)] hover:opacity-90 transition-opacity shadow-md border-0 cursor-pointer"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Album Confirmation Modal */}
+      {mounted && showDeleteAlbumModal && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in px-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteAlbumModal(false)} />
+          <div className="relative z-10 bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl animate-scale-in text-center border-2 border-white/20">
+            <div className="w-16 h-16 rounded-full bg-[var(--status-error-bg)] text-[var(--status-error-text)] flex items-center justify-center mx-auto mb-5 shadow-inner">
+              <TrashIcon size={32} />
+            </div>
+            <h3 className="font-heading font-bold text-xl text-text-primary mb-2">Hapus Album?</h3>
+            <p className="text-text-secondary text-sm mb-7">
+              Semua foto dan video di dalam album <span className="font-semibold text-pink-bold">{album.name}</span> akan terhapus secara permanen. Apakah kalian yakin? 🥺
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => setShowDeleteAlbumModal(false)}
+                disabled={isDeletingAlbum}
+                className="flex-1 py-3 px-4 rounded-xl font-body font-semibold text-text-secondary bg-gray-100 hover:bg-gray-200 transition-colors border-0 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleConfirmDeleteAlbum}
+                disabled={isDeletingAlbum}
+                className="flex-1 py-3 px-4 rounded-xl font-body font-semibold text-white bg-[var(--status-error-text)] hover:opacity-90 transition-opacity shadow-md border-0 cursor-pointer flex justify-center items-center gap-2"
+              >
+                {isDeletingAlbum ? (
+                  <>
+                    <span className="animate-spin w-4 h-4 border-2 border-white/40 border-t-white rounded-full" />
+                    Menghapus...
+                  </>
+                ) : (
+                  'Ya, Hapus'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

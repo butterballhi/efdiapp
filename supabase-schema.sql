@@ -25,6 +25,7 @@ CREATE TABLE media_items (
   status TEXT CHECK (status IN ('uploading', 'processing', 'ready', 'error')) DEFAULT 'uploading',
   thumbnail_key TEXT,
   uploaded_by UUID REFERENCES auth.users(id) NOT NULL,
+  uploaded_by_name TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabaseServerClient } from './supabase/server';
-import { deleteR2Object } from './r2';
 
 // ============ Album Actions ============
 
@@ -36,6 +35,27 @@ export async function createAlbum(name) {
   return data;
 }
 
+export async function updateAlbum(id, name) {
+  const supabase = await getSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Unauthorized');
+
+  const { data, error } = await supabase
+    .from('albums')
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('created_by', user.id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/');
+  revalidatePath(`/album/${id}`);
+  return data;
+}
+
 export async function deleteAlbum(id) {
   const supabase = await getSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -48,14 +68,13 @@ export async function deleteAlbum(id) {
     .select('file_key')
     .eq('album_id', id);
 
-  // Delete R2 objects
-  if (mediaItems) {
-    for (const item of mediaItems) {
-      try {
-        await deleteR2Object(item.file_key);
-      } catch (e) {
-        console.error('Failed to delete R2 object:', item.file_key, e);
-      }
+  // Delete Supabase Storage objects
+  if (mediaItems && mediaItems.length > 0) {
+    const fileKeys = mediaItems.map(item => item.file_key);
+    try {
+      await supabase.storage.from('efdiapp-vault').remove(fileKeys);
+    } catch (e) {
+      console.error('Failed to delete storage objects:', e);
     }
   }
 
@@ -79,6 +98,8 @@ export async function createMediaItem({ albumId, fileName, fileKey, fileSize, mi
 
   if (!user) throw new Error('Unauthorized');
 
+  const uploaderName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Unknown';
+
   const { data, error } = await supabase
     .from('media_items')
     .insert({
@@ -90,6 +111,7 @@ export async function createMediaItem({ albumId, fileName, fileKey, fileSize, mi
       type,
       status: 'ready', // For now, mark as ready immediately (no compression pipeline yet)
       uploaded_by: user.id,
+      uploaded_by_name: uploaderName,
     })
     .select()
     .single();
@@ -122,9 +144,9 @@ export async function deleteMediaItem(id, albumId) {
 
   if (item) {
     try {
-      await deleteR2Object(item.file_key);
+      await supabase.storage.from('efdiapp-vault').remove([item.file_key]);
     } catch (e) {
-      console.error('Failed to delete R2 object:', item.file_key, e);
+      console.error('Failed to delete storage object:', item.file_key, e);
     }
   }
 
@@ -155,10 +177,23 @@ export async function getAlbums() {
 
   if (error) throw new Error(error.message);
 
-  return data.map(album => ({
-    ...album,
-    itemCount: album.media_items?.[0]?.count || 0,
+  const albumsWithThumbnails = await Promise.all(data.map(async (album) => {
+    const { data: latestMedia } = await supabase
+      .from('media_items')
+      .select('file_key, type')
+      .eq('album_id', album.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      ...album,
+      itemCount: album.media_items?.[0]?.count || 0,
+      thumbnail: latestMedia || null,
+    };
   }));
+
+  return albumsWithThumbnails;
 }
 
 export async function getAlbumById(id) {

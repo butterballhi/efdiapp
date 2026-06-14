@@ -1,6 +1,4 @@
 import { getSupabaseServerClient } from '../../lib/supabase/server';
-import { getPresignedDownloadUrl } from '../../lib/r2';
-
 export async function GET(request) {
   try {
     const supabase = await getSupabaseServerClient();
@@ -20,9 +18,15 @@ export async function GET(request) {
       );
     }
 
-    const downloadUrl = await getPresignedDownloadUrl(fileKey);
+    const { data, error } = await supabase.storage
+      .from('efdiapp-vault')
+      .createSignedUrl(fileKey, 3600);
 
-    return Response.json({ downloadUrl });
+    if (error) {
+      throw error;
+    }
+
+    return Response.json({ downloadUrl: data.signedUrl });
   } catch (error) {
     console.error('Download presign error:', error);
     return Response.json(
