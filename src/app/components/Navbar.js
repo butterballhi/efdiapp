@@ -69,44 +69,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-text-primary hover:bg-pink-pastel/40 transition-colors cursor-pointer border-0 bg-transparent"
-            id="mobile-menu-button"
-          >
-            <MenuIcon size={22} />
-          </button>
         </div>
-
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="md:hidden py-4 border-t border-pink-pastel/40 animate-fade-in">
-            <div className="flex flex-col gap-1">
-              {user && (
-                <div className="px-4 py-3 mb-2 rounded-xl bg-pink-pastel/15">
-                  <p className="font-heading font-semibold text-sm text-text-primary">{displayName}</p>
-                  <p className="text-xs text-text-secondary">{displayEmail}</p>
-                </div>
-              )}
-              <Link href="/" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-semibold font-heading text-text-primary no-underline hover:bg-pink-pastel/30 transition-colors">
-                🏠 Album
-              </Link>
-              {user ? (
-                <button
-                  onClick={() => { setMenuOpen(false); signOut(); }}
-                  className="px-4 py-3 rounded-xl text-sm font-semibold font-heading text-status-error-text text-left hover:bg-status-error-bg/30 transition-colors cursor-pointer border-0 bg-transparent"
-                >
-                  🚪 Keluar
-                </button>
-              ) : (
-                <Link href="/login" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl text-sm font-semibold font-heading text-pink-bold no-underline hover:bg-pink-pastel/30 transition-colors">
-                  🔑 Masuk
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Click outside handler overlay */}
